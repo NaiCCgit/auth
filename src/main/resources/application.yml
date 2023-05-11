@@ -1,0 +1,19 @@
+# H2 config
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb # h2 database 連接位址
+    driver-class-name: org.h2.Driver # 配置driver
+    username: sa # database 用戶名
+    password: # database 密碼
+  jpa:
+    generate-ddl: true
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+    database-platform: org.hibernate.dialect.H2Dialect
+  security.user:
+    name: sa
+    password: sa
+  sql:
+    init:
+      data-locations: classpath:data.sql
