@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.Map;
 
 
-@Tag(name = "解析憑證", description = "",
+@Tag(name = "憑證API", description = "",
 		externalDocs = @ExternalDocumentation(description = "Hybris revamp", url = "https://app.diagrams.net/#G1oL91FbzYXNhptlFWGzT0BO9VUcOjFabI#%7B%22pageId%22%3A%22kAxL3TWApweyhOxt9li8%22%7D"))
 @AllArgsConstructor
 @Slf4j
@@ -41,34 +41,27 @@ public class TokenControlller {
 		return "Welcome Home!";
 	}
 
+	/**
+	 * 從request取得帳密產生JWT
+	 */
+	@Operation(summary = "Generate token", description = "以現存使用者的帳密拿到token")
+	@PostMapping("/auth/login")
+	public ResponseEntity<Map<String, String>> generateToken(@Valid @RequestBody AuthRequest request) {
+		log.info("generateToken:{}", request);
+		String token = jwtService.generateToken(request);
+		Map<String, String> response = Collections.singletonMap("token", token);
 
-	@PostMapping("/exchange")
-//	public ResponseEntity<ResponseRequest<T>> exchangeToken() {
-	public void exchangeToken() {
-
-//		TransDeliveryPlanning newTransDeliveryPlanning = transDeliveryPlanningService.save(request);
-//
-//		ResponseRequest<TransDeliveryPlanning> response = new ResponseRequest<TransDeliveryPlanning>();
-//
-//		if (newTransDeliveryPlanning != null) {
-//			response.setMessage(PESAN_SIMPAN_BERHASIL);
-//			response.setData(newTransDeliveryPlanning);
-//		} else {
-//			response.setMessage(PESAN_SIMPAN_GAGAL);
-//		}
-
-//		return ResponseEntity.ok(response);
+		return ResponseEntity.ok(response);
 	}
 
 	/**
 	 * 從request取得帳密產生JWT
 	 */
-	@Operation(summary = "Generate token")
-	@PostMapping("/auth/generate-token")
-	public ResponseEntity<Map<String, String>> generateToken(@Valid @RequestBody AuthRequest request) {
-		log.info("generateToken:{}", request);
-		String token = jwtService.generateToken(request);
-		Map<String, String> response = Collections.singletonMap("token", token);
+	@Operation(summary = "Exchange token", description = "以OCC token換取另一JWT，其內包含mall內的PK和uid")
+	@PostMapping("/occ/login/tokenExchange")
+	public ResponseEntity<Map<String, Object>> exchangeOccToken(@Valid @RequestBody Map<String, String> request) {
+		String token = request.get("token");
+		Map<String, Object> response = jwtService.parseOccToken(token);
 
 		return ResponseEntity.ok(response);
 	}

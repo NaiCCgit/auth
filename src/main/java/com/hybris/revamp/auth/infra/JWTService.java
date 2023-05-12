@@ -2,9 +2,14 @@ package com.hybris.revamp.auth.infra;
 
 import com.hybris.revamp.auth.dto.AuthRequest;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.Builder;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,14 +22,19 @@ import java.util.Calendar;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-
+@Slf4j
+@RequiredArgsConstructor
 @Service
 public class JWTService {
+
+	private final UserIdentity userIdentity;
 
 	@Autowired
 	private AuthenticationManager authenticationManager;
 
 	private static final String KEY = "ShoalterHktvMallHybrisTokenSecretKey";
+
+	private static final String HKTV_KEY = "ShoalterHktvMallHybrisTokenSecretKey";
 
 	/**
 	 * 產生期限2分鐘的 JWT
@@ -41,7 +51,7 @@ public class JWTService {
 		UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
 		Calendar calendar = Calendar.getInstance();
-		calendar.add(Calendar.MINUTE, 2000);
+		calendar.add(Calendar.MINUTE, 200);
 
 		// Claims物件用來放payload
 		Claims claims = Jwts.claims();
@@ -82,6 +92,103 @@ public class JWTService {
 
 		return claims.entrySet().stream()
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+	}
+
+	/**
+	 * 進入此方法須header先帶了 in situ 的token
+	 * 方法參數為Occtoken
+	 */
+	public String exchangeToken(String token) {
+		Claims claims = this.parseOccToken(token);
+		CustomerProfileInfo cusInfo = this.getCustomerProfileInfo(claims);
+		// fixme: @FeignClient
+		String ROLE_CUSTOMERGROUP_TOKEN = HktvApi.customerLogin(cusInfo.getCustomerName(), cusInfo.getPassword());
+		// fixme: call Api with header token
+		CustomerData curCustomer = HktvApi.getCurrentCustomer();
+		generateOccToken()
+	}
+
+	/**
+	 * 進入此方法須header先帶了 in situ 的token
+	 * 方法參數為Occtoken
+	 */
+	public Claims parseOccToken(String token) {
+		// HKTV密鑰
+		Key secretKey = Keys.hmacShaKeyFor(HKTV_KEY.getBytes());
+		JwtParser parser = Jwts.parserBuilder()
+				.setSigningKey(secretKey)
+				.build();
+
+		// 解析出JWS，如果失敗會SignatureException,如果過期會ExpiredJwtException
+		JwsHeader header = parser.parseClaimsJws(token).getHeader();
+		Claims claims = parser.parseClaimsJws(token).getBody();
+		log.info("OCC token header:{}", header);
+		log.info("OCC token payload:{}", claims);
+
+		return claims;
+	}
+
+	/**
+	 * mock
+	 * TODO: 找到hybris登入的API
+	 */
+	class HktvApi{
+		static String customerLogin(String n, String p){ return "12345798"; }
+		static CustomerData getCurrentCustomer(){ return new JWTService.CustomerData(); }
+	}
+
+	/**
+	 * mock "use the token to get customer profile info"
+	 */
+	static class CustomerData{}
+
+	/**
+	 * mock "use the token to get customer profile info"
+	 */
+	@Data
+	@Builder
+	class CustomerProfileInfo
+	{
+		long id;
+		String customerName;
+		String password;
+	}
+
+	/**
+	 * mock "use the token to get customer profile info"
+	 */
+	private CustomerProfileInfo getCustomerProfileInfo(Claims claims) {
+		return CustomerProfileInfo.builder().customerName("default").password("default").build();
+//		repository.findCustomerProfileInfoById(claims.getSubject());
+	}
+
+	private String generateOccToken(String n, String p) {
+		Authentication authentication = new UsernamePasswordAuthenticationToken(n, p);
+		// authenticationManager有多種驗證方法,param會是一個Authentication介面
+		// 如果要以帳密驗證,那就使用介面下的UsernamePasswordAuthenticationToken實做
+		authentication = authenticationManager.authenticate(authentication);
+		// authenticate成功後的return依然是Authentication介面,但其內的principal會變成UserDetails
+		UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+		Calendar calendar = Calendar.getInstance();
+		calendar.add(Calendar.MINUTE, 200);
+
+		// Claims物件用來放payload
+		Claims claims = Jwts.claims();
+		claims.put("username", userDetails.getUsername());
+		claims.put("PK", userDetails.getUsername());
+		claims.put("uid", userDetails.getUsername());
+		claims.setExpiration(calendar.getTime());
+		claims.setIssuer("Shoalter-BE-II");
+
+		// 產生密鑰: 提供一個字串,轉成 byte[]作為參數
+		Key secretKey = Keys.hmacShaKeyFor(KEY.getBytes());
+
+		// header已內建，只需提供payload & 以密鑰簽名
+		return Jwts.builder()
+				.setClaims(claims)
+				.signWith(secretKey)
+				.compact();
 	}
 
 }
