@@ -1,2 +1,3 @@
-insert into APP_USER (EMAIL_ADDRESS, PASSWORD, NAME) values ('sa', 'sa', 'sa');
-insert into APP_USER (EMAIL_ADDRESS, PASSWORD, NAME) values ('admin', 'admin', 'admin');
+insert into APP_USER (EMAIL_ADDRESS, PASSWORD, NAME) values ('user', '$2a$10$sgNEMSLcqJfWpCxbyMiTzuNzOXI.AVwQ6ntbfCP9XOENhZA3e305u', 'user');
+insert into APP_USER (EMAIL_ADDRESS, PASSWORD, NAME) values ('sa', '$2a$10$J4R6HQq.Yy0Hgi9QcUaCoOWPcgas9uDp52BxjaAHvlUnNg9oR9362', 'sa');
+insert into APP_USER (EMAIL_ADDRESS, PASSWORD, NAME) values ('admin', '$2a$10$Q1lO6haNaxy//BhVoEw0xuJg8qxUChQrOMWOlPiqBzrbsWsLTbM52', 'admin');

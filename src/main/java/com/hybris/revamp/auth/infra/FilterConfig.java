@@ -10,8 +10,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class FilterConfig {
 
+	/**
+	 * 寫好的filter class要註冊為Bean才會有這個元件可以用
+	 * @return 不是filter本身，而是FilterRegistrationBean
+	 */
 	@Bean
-	public FilterRegistrationBean logApiFilter() {
+	public FilterRegistrationBean<LogApiFilter> logApiFilter() {
 		FilterRegistrationBean<LogApiFilter> bean = new FilterRegistrationBean<>();
 		bean.setFilter(new LogApiFilter());
 		bean.addUrlPatterns("/*");
@@ -23,7 +27,7 @@ public class FilterConfig {
 	}
 
 	@Bean
-	public FilterRegistrationBean logProcessTimeFilter() {
+	public FilterRegistrationBean<LogProcessTimeFilter> logProcessTimeFilter() {
 		FilterRegistrationBean<LogProcessTimeFilter> bean = new FilterRegistrationBean<>();
 		bean.setFilter(new LogProcessTimeFilter());
 		bean.addUrlPatterns("/*");

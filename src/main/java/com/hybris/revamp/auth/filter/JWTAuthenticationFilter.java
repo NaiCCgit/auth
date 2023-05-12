@@ -19,7 +19,13 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
 
-
+/**
+ * 比一般filter更早值型
+ * 不是透過filterConfig註冊，所以要@Component
+ * 會查詢db user，為了把驗證後的資料(Authentication)帶給Security的Context
+ * 此後就可以以getContext快速的拿到requester的資料
+ *
+ */
 @Slf4j
 @Component
 public class JWTAuthenticationFilter extends OncePerRequestFilter
@@ -31,7 +37,7 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter
 	private UserDetailsService userDetailsService;
 
 	/**
-	 * 取出Header Authorization欄位(e.g. Bear 12qww2q1)
+	 * 取出Header Authorization欄位(e.g."Bear 12qww2q1")
 	 * 取出token的payload中的username
 	 */
 	@Override
@@ -45,18 +51,18 @@ public class JWTAuthenticationFilter extends OncePerRequestFilter
 			log.info("accessToken:{}", accessToken);
 
 			Map<String, Object> claims = jwtService.parseToken(accessToken);
+			log.info("claims:{}", claims);
 			String username = (String) claims.get("username");
 			log.info("username:{}", username);
 			UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-			log.info("userDetails:{}", userDetails);
+			log.info("userDetails in db:{}", userDetails);
 
 			// param(Object principal, Object credentials)
-			Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null);
+			Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 			//					不做授權
 			//					new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		}
-
 		chain.doFilter(request, response);
 	}
 }

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,9 +32,9 @@ import java.util.Map;
 @RestController
 public class TokenControlller {
 
-	final private JWTService jwtService;
+	private final JWTService jwtService;
 
-	final private AppUserService service;
+	private final AppUserService service;
 
 	@RequestMapping("/")
 	public String home() {
@@ -58,9 +59,14 @@ public class TokenControlller {
 
 //		return ResponseEntity.ok(response);
 	}
+
+	/**
+	 * 從request取得帳密產生JWT
+	 */
 	@Operation(summary = "Generate token")
 	@PostMapping("/auth/generate-token")
 	public ResponseEntity<Map<String, String>> generateToken(@Valid @RequestBody AuthRequest request) {
+		log.info("generateToken:{}", request);
 		String token = jwtService.generateToken(request);
 		Map<String, String> response = Collections.singletonMap("token", token);
 
@@ -92,5 +98,15 @@ public class TokenControlller {
 		return ResponseEntity.created(location).body(user);
 	}
 
+	@GetMapping("/auth")
+	public void publicApi() {
+		log.info("publicApi");
+
+	}
+
+	@PostMapping("/controlled")
+	public void accessControlled() {
+		log.info("accessControlled");
+	}
 
 }

@@ -1,6 +1,6 @@
 package com.hybris.revamp.auth.filter;
 
-import org.springframework.context.annotation.Configuration;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.servlet.FilterChain;
@@ -9,12 +9,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
+@Slf4j
 public class LogProcessTimeFilter extends OncePerRequestFilter
 {
 
 	/**
 	 * 有request時先觸發doFilterInternal
-	 *
+	 * 此filter方法只是計算處理時間
 	 */
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -25,6 +26,6 @@ public class LogProcessTimeFilter extends OncePerRequestFilter
 		chain.doFilter(request, response);
 		long processTime = System.currentTimeMillis() - startTime;
 
-		System.out.println(processTime + " ms");
+		log.info("{} ms", processTime);
 	}
 }
