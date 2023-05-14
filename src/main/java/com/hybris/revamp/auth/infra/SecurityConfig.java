@@ -31,7 +31,6 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
 
 	/**
 	 *  /auth API 及其底下 允許
-	 *  /auth/user POST 是建立使用者 允許
 	 *  swagger, h2 允許
 	 *  其餘所有 API，需要驗證
 	 */
