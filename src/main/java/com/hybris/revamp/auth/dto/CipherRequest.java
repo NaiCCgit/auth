@@ -10,7 +10,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CipherRequest
 {
-	Ttf ttf;
-	String alg; // future usage
-	String cipher;
+	String token;
 }

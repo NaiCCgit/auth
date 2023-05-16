@@ -1,7 +1,6 @@
 package com.hybris.revamp.auth.infra;
 
 import com.hybris.revamp.auth.dto.CipherRequest;
-import com.hybris.revamp.auth.dto.Ttf;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +22,7 @@ public class CipherService
 
 	@SneakyThrows
 	public String parseCipherRequest(CipherRequest request){
-		return switch (request.getTtf()) {
-			case ENCODE -> this.decode(request.getCipher());
-			case ENCRYPT -> this.decrypt(request.getCipher());
-		};
+		return this.decode(request.getToken());
 	}
 
 	@SneakyThrows
@@ -42,7 +38,7 @@ public class CipherService
 
 	public CipherRequest encode(String raw){
 		String encoded = Base64.getEncoder().encodeToString(raw.getBytes());
-		return new CipherRequest(Ttf.ENCODE, "Base64", encoded);
+		return new CipherRequest(encoded);
 	}
 
 }
