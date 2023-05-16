@@ -1,22 +1,23 @@
 package com.hybris.revamp.auth.infra;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hybris.revamp.auth.dto.AuthRequest;
 import com.hybris.revamp.auth.exception.NotFoundException;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -27,10 +28,23 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -39,7 +53,9 @@ import java.util.stream.Collectors;
 @Service
 public class JWTService {
 
-	private final UserIdentity userIdentity;
+//	private final UserIdentity userIdentity;
+	@Autowired
+	private UserIdentity userIdentity;
 
 	@Autowired
 	private AuthenticationManager authenticationManager;
@@ -47,6 +63,7 @@ public class JWTService {
 	private static final String KEY = "ShoalterHktvMallHybrisTokenSecretKey";
 
 	// fixme: need key to decrypt Occ Token
+	// TODO: RSA256
 	private static final String HKTV_KEY = "ShoalterHktvMallHybrisTokenSecretKey";
 
 	/**
@@ -120,17 +137,18 @@ public class JWTService {
 	@SneakyThrows
 	public String exchangeToken(String token)
 	{
-		Claims claims = this.parseOccToken(token);
-		CustomerProfileInfo cusInfo = this.getCustomerProfileInfo(claims);
-		// fixme: get HktvToken?
-		String ROLE_CUSTOMERGROUP_TOKEN = this.hktvCustomerLogin(cusInfo.getCustomerName(), cusInfo.getPassword());
-		// fixme: call Api with header token
-		CustomerData curCustomer = hktvGetCurrentCustomer(ROLE_CUSTOMERGROUP_TOKEN);
-		String exchagedToken = this.generateOccToken(curCustomer);
-		log.info("exchagedToken{}", exchagedToken);
+		log.info("userIdentity:{}", userIdentity);
+//		Claims claims = this.parseOccToken(token);
+		// fixme: this is mock
+		CustomerProfileInfo cusInfo = this.getCustomerProfileInfo(token);
+		String access_token = this.hktvOauthLogin(cusInfo.getCustomerName(), cusInfo.getPassword());
+		CustomerData curCustomer = this.hktvGetCurrentCustomer(access_token);
+		String exchagedToken = this.generateOccToken(curCustomer, token);
+		log.info("exchagedToken:{}", exchagedToken);
 		return exchagedToken;
 	}
 
+	// TODO: occ不是Jwt，隨便加密隨便解密，raw大致長像 0008c8d8-e0c7-48a1-a62b-516a69a6b87a
 	/**
 	 * 進入此方法須header先帶了 in situ 的token
 	 * 方法參數為Occtoken
@@ -152,36 +170,102 @@ public class JWTService {
 	}
 
 	/**
-	 * mock 到hktv拿到代表customer的token
+	 * 到hktv拿到代表customer的token
 	 */
-	static String hktvCustomerLogin(String n, String p){ return "12345798"; }
+	@SneakyThrows
+	String hktvOauthLogin(String username, String password) {
+		String url = "https://localhost:9112/hktvwebservices/oauth/token";
+		HktvTokenRequest reqParam = new HktvTokenRequest("password", username, password);
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		this.addBasicAuth(username, password, headers);
+		log.info("headers{}", headers);
+		// application/x-www-form-urlencoded格式的requestBody
+		MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+		map.add("grant_type","password");
+		map.add("username",username);
+		map.add("password",password);
+		HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
+		log.info("request{}", request);
+
+		RestTemplate restTemplate = new RestTemplate();
+		log.info("Hktv Token RequestParam:{}", reqParam);
+		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+		if(response.getStatusCode().is2xxSuccessful() && response.hasBody()){
+			HktvTokenResponse responseObj = new ObjectMapper().readValue(response.getBody(), HktvTokenResponse.class);
+			log.info("Hktv Token ResponseObj:{}", responseObj);
+			return responseObj.getAccess_token();
+		}
+		throw new NotFoundException("Fail to get Oauth token from HKTV");
+	}
+
+	/**
+	 * HTTP Basic Authentication
+	 */
+	private HttpHeaders addBasicAuth(String username, String password, HttpHeaders headers) {
+		String auth = username + ":" + password;
+		var encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+		String authHeader = "Basic " + encodedAuth;
+//		headers.set( "Authorization", authHeader );
+		// fixme: Figure out Basic Auth logic?
+		headers.set( "Authorization", "Basic aGt0dl9pb3M6SCphSyMpSE0yNDg=");
+		return headers;
+	}
+
+	@Data
+	@AllArgsConstructor
+	static class HktvTokenRequest
+	{
+		String grant_type;
+		String username;
+		String password;
+	}
+	@Data
+	@NoArgsConstructor
+	@AllArgsConstructor
+	static class HktvTokenResponse
+	{
+		String access_token;
+		String token_type;
+		String refresh_token;
+		Long expires_in;
+	}
+
+
 	/**
 	 * header帶token，到hktv拿到CustomerData
 	 */
 	@SneakyThrows
-	static CustomerData hktvGetCurrentCustomer(String mallToken)
+	static CustomerData hktvGetCurrentCustomer(String access_token)
 	{
-		String url = "http://localhost:9112/hktvwebservices/v1/hktv/customers/current";
+		String url = "https://localhost:9112/hktvwebservices/v1/hktv/customers/current";
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		headers.set("Authorization", "Bearer " + mallToken);
+		headers.set("Authorization", "Bearer " + access_token);
 		HttpEntity<String> entity = new HttpEntity<>("parameters", headers);
 
 		RestTemplate restTemplate = new RestTemplate();
+		log.info("Hktv CurrentCustomer Request headers:{}", headers);
 		ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 		if(response.getStatusCode().is2xxSuccessful() && response.hasBody()){
-			return new ObjectMapper().readValue(response.getBody(), CustomerData.class);
+			CustomerData customerData = new ObjectMapper().readValue(response.getBody(), CustomerData.class);
+			log.info("Hktv CurrentCustomer Response:{}", customerData);
+			return customerData;
 		}
-		throw new NotFoundException("fail to get CurrentCustomer from HKTV");
+		throw new NotFoundException("Fail to get CurrentCustomer from HKTV");
 	}
 
 	/**
-	 * mock "use the token to get customer profile info"
+	 * Hktv CurrentCustomer Response Body
 	 */
 	@Data
+	@AllArgsConstructor
+	@NoArgsConstructor
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	static class CustomerData{
 		String customerId;
 		String uid;
+		String muid;
 	}
 
 	/**
@@ -199,32 +283,106 @@ public class JWTService {
 	/**
 	 * mock "use the token to get customer profile info"
 	 */
-	private CustomerProfileInfo getCustomerProfileInfo(Claims claims) {
-		return new CustomerProfileInfo(99l, "default", "default");
+	private CustomerProfileInfo getCustomerProfileInfo(String claims) {
+		return new CustomerProfileInfo(99l, "cyliu@hktv.com.hk", "qwe123");
 //		repository.findCustomerProfileInfoById(claims.getSubject());
 	}
 
-	private String generateOccToken(CustomerData curCustomer) {
+	private static String publicKeyStr;
+	private static String privateKeyStr;
 
-		Calendar calendar = Calendar.getInstance();
-		calendar.add(Calendar.MINUTE, 200);
+	@SneakyThrows
+	private String generateOccToken(CustomerData curCustomer, String rawOccToken) {
+		// 無安全保護的鑰匙對
+		KeyPair keyPair = this.generateRsaKeyPair();
+		// 建立公私鑰
+		this.publicKeyStr = "-----BEGIN PUBLIC KEY-----" + new String(Base64.getEncoder().encode(keyPair.getPublic().getEncoded()), "UTF-8") + "-----END PUBLIC KEY-----";
+		this.privateKeyStr = "-----BEGIN PRIVATE KEY-----" + new String(Base64.getEncoder().encode(keyPair.getPrivate().getEncoded()), "UTF-8") + "-----END PRIVATE KEY-----";
 
-		// Claims物件用來放payload
+		log.info("Public Key: {}", publicKeyStr);
+		log.info("Private Key: {}", privateKeyStr);
+
+		String someProperyValue = "someName";
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		Claims claims = Jwts.claims();
-		claims.put("username", userIdentity.getName());
+		claims.setIssuer("Shoalter-BE-II")
+				.setExpiration(sdf.parse("2200-01-01"));
+		// TODO: 不確定CustomerId, Muid哪個是PK
 		claims.put("PK", curCustomer.getCustomerId());
+		claims.put("muid", curCustomer.getMuid());
 		claims.put("uid", curCustomer.getUid());
-		claims.setExpiration(calendar.getTime());
-		claims.setIssuer("Shoalter-BE-II");
+		claims.put("raw-occ-token", rawOccToken);
 
-		// 產生密鑰: 提供一個字串,轉成 byte[]作為參數
-		Key secretKey = Keys.hmacShaKeyFor(HKTV_KEY.getBytes());
+		String generatedRsaJwt = generateRsaJwt(claims, privateKeyStr);
+		log.info("generatedRsaJwt: {}", generatedRsaJwt);
+		return generatedRsaJwt;
 
-		// header已內建，只需提供payload & 以密鑰簽名
-		return Jwts.builder()
+	}
+
+
+
+	/**
+	 * 以private key建立RSA Jwt
+	 */
+	@SneakyThrows
+	private String generateRsaJwt(Claims claims, String privateKeyStr) {
+
+		privateKeyStr = privateKeyStr.replace("-----BEGIN PRIVATE KEY-----", "");
+		privateKeyStr = privateKeyStr.replace("-----END PRIVATE KEY-----", "");
+		privateKeyStr = privateKeyStr.replaceAll("\r\n", "");
+		privateKeyStr = privateKeyStr.replaceAll("\\s+", "");
+
+		PKCS8EncodedKeySpec keySpec_private = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyStr.getBytes("UTF-8")));
+		KeyFactory keyFactory_private = KeyFactory.getInstance("RSA");
+		PrivateKey privateKey = keyFactory_private.generatePrivate(keySpec_private);
+
+		String generatedRsaJwt = Jwts.builder()
+				.setHeaderParam("typ", "JWT")
 				.setClaims(claims)
-				.signWith(secretKey)
+				.signWith(SignatureAlgorithm.RS256, privateKey)
 				.compact();
+		log.info("generatedRsaJwt:{}", generatedRsaJwt);
+		return generatedRsaJwt;
+	}
+
+	@SneakyThrows
+	public Map<String, Object> parseRsaJwt(String jwtToParse) {
+		Claims parsedRsaJwtClaims = null;
+
+		this.publicKeyStr = this.publicKeyStr.replace("-----BEGIN PUBLIC KEY-----", "");
+		this.publicKeyStr = this.publicKeyStr.replace("-----END PUBLIC KEY-----", "");
+		this.publicKeyStr = this.publicKeyStr.replaceAll("\r\n", "");
+		this.publicKeyStr = this.publicKeyStr.replaceAll("\\s+", "");
+
+		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyStr.getBytes("UTF-8")));
+		KeyFactory keyFactory_public = KeyFactory.getInstance("RSA");
+		PublicKey publicKey_public = keyFactory_public.generatePublic(keySpec_public);
+
+		Jws<Claims> jws = Jwts.parser()
+				.setSigningKey(publicKey_public)
+				.parseClaimsJws(jwtToParse);
+
+		parsedRsaJwtClaims = jws.getBody();
+
+		return parsedRsaJwtClaims.entrySet().stream()
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+	}
+
+	/**
+	 * 以secureRandom建立KeyPair
+	 */
+	@SneakyThrows
+	private static KeyPair generateRsaKeyPair() {
+		KeyPair keyPair = null;
+
+		SecureRandom secureRandom = new SecureRandom();
+		secureRandom.setSeed("shoalter".getBytes("UTF-8"));
+
+		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+		keyPairGenerator.initialize(2048, secureRandom);
+		keyPair = keyPairGenerator.generateKeyPair();
+
+		return keyPair;
 	}
 
 }

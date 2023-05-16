@@ -1,6 +1,8 @@
 package com.hybris.revamp.auth.infra;
 
 import com.hybris.revamp.auth.model.AppUser;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Component;
  * 任何service autowired此class進去就能get requester相關資料
  */
 @Component
+@Slf4j
+@Data
 public class UserIdentity
 {
 
@@ -19,6 +23,7 @@ public class UserIdentity
 	private SpringUser getSpringUser() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		Object principal = authentication.getPrincipal();
+		log.info("UserIdentity principal:{}", principal);
 		return principal.equals("anonymousUser")
 				? EMPTY_USER
 				: (SpringUser) principal;

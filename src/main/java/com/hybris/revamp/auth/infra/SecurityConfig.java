@@ -40,6 +40,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
 				.authorizeRequests()
 				.antMatchers(HttpMethod.POST, "/controlled").authenticated()
 				.antMatchers(HttpMethod.GET).permitAll()
+				.antMatchers(HttpMethod.POST, "/occ/**").permitAll()
 				.antMatchers(HttpMethod.POST, "/auth/**").permitAll()
 //				.antMatchers(HttpMethod.POST, "/auth/user").permitAll()
 				// 允許h2開頭的網址

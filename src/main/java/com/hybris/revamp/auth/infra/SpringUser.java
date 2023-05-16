@@ -3,12 +3,10 @@ package com.hybris.revamp.auth.infra;
 
 import com.hybris.revamp.auth.model.AppUser;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.stream.Collectors;
 
 
 public class SpringUser implements UserDetails
@@ -16,6 +14,10 @@ public class SpringUser implements UserDetails
 	private AppUser appUser;
 
 	public SpringUser(AppUser appUser) {
+		this.appUser = appUser;
+	}
+
+	public SpringUser(String name, String password, Collection<? extends GrantedAuthority> authorities) {
 		this.appUser = appUser;
 	}
 
@@ -29,7 +31,7 @@ public class SpringUser implements UserDetails
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 //		return appUser.getAuthorities().stream()
 //				.map(auth -> new SimpleGrantedAuthority(auth.name()))
 //				.collect(Collectors.toList());

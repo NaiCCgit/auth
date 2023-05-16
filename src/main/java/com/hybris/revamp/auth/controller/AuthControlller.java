@@ -25,12 +25,12 @@ import java.util.Collections;
 import java.util.Map;
 
 
-@Tag(name = "憑證API", description = "",
-		externalDocs = @ExternalDocumentation(description = "Hybris revamp", url = "https://app.diagrams.net/#G1oL91FbzYXNhptlFWGzT0BO9VUcOjFabI#%7B%22pageId%22%3A%22kAxL3TWApweyhOxt9li8%22%7D"))
+@Tag(name = "身分驗證API", description = "本系統的使用者建立,token分析與相關access control", externalDocs = @ExternalDocumentation(description = "Spring Security", url = "https://chikuwa-tech-study.blogspot.com/2021/06/spring-boot-security-authentication-and-authorization.html"))
 @AllArgsConstructor
 @Slf4j
 @RestController
-public class TokenControlller {
+public class AuthControlller
+{
 
 	private final JWTService jwtService;
 
@@ -43,7 +43,6 @@ public class TokenControlller {
 	public String home() {
 		return "Welcome Home!";
 	}
-
 
 	/**
 	 * 建立"此系統的使用者"
@@ -86,25 +85,6 @@ public class TokenControlller {
 		log.info("parseToken:{}", request);
 		String token = request.get("token");
 		Map<String, Object> response = jwtService.parseToken(token);
-
-		return ResponseEntity.ok(response);
-	}
-
-	/**
-	 * header帶"本系統token"
-	 * request body帶occ token
-	 * 以occ token資訊，透過mock管道，拿到customer info
-	 * 以customer info產生要給mall系統的Jwt
-	 * 以Jwt，透過mall api，拿到pk,uid
-	 * 以pk,uid，產生JWT回傳
-	 *
-	 */
-	@Operation(summary = "Exchange token", description = "以OCC token換取另一JWT回傳，其內包含mall內的PK和uid")
-	@PostMapping("/occ/login/tokenExchange")
-	public ResponseEntity<Map<String, String>> exchangeOccToken(@Valid @RequestBody Map<String, String> request) {
-		String token = request.get("token");
-		String exchangedToken = jwtService.exchangeToken(token);
-		Map<String, String> response = Collections.singletonMap("token", exchangedToken);
 
 		return ResponseEntity.ok(response);
 	}

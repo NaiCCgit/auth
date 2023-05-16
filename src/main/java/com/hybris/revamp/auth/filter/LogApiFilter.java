@@ -47,10 +47,10 @@ public class LogApiFilter extends OncePerRequestFilter
 		ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
 
 		String requestBody = getContent(requestWrapper.getContentAsByteArray());
-		log.info("Request: {}" + requestBody);
+		log.info("Request: {}", requestBody);
 
 		String responseBody = getContent(responseWrapper.getContentAsByteArray());
-		log.info("Response: {}" + responseBody);
+		log.info("Response: {}", responseBody);
 
 	}
 

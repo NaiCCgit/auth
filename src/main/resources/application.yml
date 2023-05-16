@@ -17,3 +17,13 @@ spring:
   sql:
     init:
       data-locations: classpath:data.sql
+
+server.ssl.enabled: false
+
+# RS256
+auth.jwt:
+  ttl: 3600000 # expired ms
+  issuer: Shoalter-BE-II
+  key: rsa_exchange_key
+  rsa:
+    secret:
