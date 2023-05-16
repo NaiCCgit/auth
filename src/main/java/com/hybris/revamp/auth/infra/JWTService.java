@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hybris.revamp.auth.dto.AuthRequest;
 import com.hybris.revamp.auth.exception.NotFoundException;
+import com.hybris.revamp.auth.prop.JwtProperty;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
@@ -44,7 +45,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Calendar;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -53,12 +53,14 @@ import java.util.stream.Collectors;
 @Service
 public class JWTService {
 
-//	private final UserIdentity userIdentity;
-	@Autowired
-	private UserIdentity userIdentity;
-
-	@Autowired
-	private AuthenticationManager authenticationManager;
+	private final JwtProperty jwtProperty;
+	private final UserIdentity userIdentity;
+	private final AuthenticationManager authenticationManager;
+//	@Autowired
+//	private UserIdentity userIdentity;
+//
+//	@Autowired
+//	private AuthenticationManager authenticationManager;
 
 	private static final String KEY = "ShoalterHktvMallHybrisTokenSecretKey";
 
@@ -288,19 +290,11 @@ public class JWTService {
 //		repository.findCustomerProfileInfoById(claims.getSubject());
 	}
 
-	private static String publicKeyStr;
-	private static String privateKeyStr;
-
 	@SneakyThrows
 	private String generateOccToken(CustomerData curCustomer, String rawOccToken) {
-		// 無安全保護的鑰匙對
-		KeyPair keyPair = this.generateRsaKeyPair();
-		// 建立公私鑰
-		this.publicKeyStr = "-----BEGIN PUBLIC KEY-----" + new String(Base64.getEncoder().encode(keyPair.getPublic().getEncoded()), "UTF-8") + "-----END PUBLIC KEY-----";
-		this.privateKeyStr = "-----BEGIN PRIVATE KEY-----" + new String(Base64.getEncoder().encode(keyPair.getPrivate().getEncoded()), "UTF-8") + "-----END PRIVATE KEY-----";
 
-		log.info("Public Key: {}", publicKeyStr);
-		log.info("Private Key: {}", privateKeyStr);
+		log.info("Public Key: {}", jwtProperty.getRsa().getPublicKey());
+		log.info("Private Key: {}", jwtProperty.getRsa().getPrivateKey());
 
 		String someProperyValue = "someName";
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -313,24 +307,17 @@ public class JWTService {
 		claims.put("uid", curCustomer.getUid());
 		claims.put("raw-occ-token", rawOccToken);
 
-		String generatedRsaJwt = generateRsaJwt(claims, privateKeyStr);
+		String generatedRsaJwt = generateRsaJwt(claims, jwtProperty.getRsa().getPrivateKey());
 		log.info("generatedRsaJwt: {}", generatedRsaJwt);
 		return generatedRsaJwt;
 
 	}
-
-
 
 	/**
 	 * 以private key建立RSA Jwt
 	 */
 	@SneakyThrows
 	private String generateRsaJwt(Claims claims, String privateKeyStr) {
-
-		privateKeyStr = privateKeyStr.replace("-----BEGIN PRIVATE KEY-----", "");
-		privateKeyStr = privateKeyStr.replace("-----END PRIVATE KEY-----", "");
-		privateKeyStr = privateKeyStr.replaceAll("\r\n", "");
-		privateKeyStr = privateKeyStr.replaceAll("\\s+", "");
 
 		PKCS8EncodedKeySpec keySpec_private = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyStr.getBytes("UTF-8")));
 		KeyFactory keyFactory_private = KeyFactory.getInstance("RSA");
@@ -349,12 +336,7 @@ public class JWTService {
 	public Map<String, Object> parseRsaJwt(String jwtToParse) {
 		Claims parsedRsaJwtClaims = null;
 
-		this.publicKeyStr = this.publicKeyStr.replace("-----BEGIN PUBLIC KEY-----", "");
-		this.publicKeyStr = this.publicKeyStr.replace("-----END PUBLIC KEY-----", "");
-		this.publicKeyStr = this.publicKeyStr.replaceAll("\r\n", "");
-		this.publicKeyStr = this.publicKeyStr.replaceAll("\\s+", "");
-
-		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(publicKeyStr.getBytes("UTF-8")));
+		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(jwtProperty.getRsa().getPublicKey().getBytes("UTF-8")));
 		KeyFactory keyFactory_public = KeyFactory.getInstance("RSA");
 		PublicKey publicKey_public = keyFactory_public.generatePublic(keySpec_public);
 
@@ -384,26 +366,6 @@ public class JWTService {
 
 		return parsedRsaJwtClaims.entrySet().stream()
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-	}
-
-
-
-
-	/**
-	 * 以secureRandom建立KeyPair
-	 */
-	@SneakyThrows
-	private static KeyPair generateRsaKeyPair() {
-		KeyPair keyPair = null;
-
-		SecureRandom secureRandom = new SecureRandom();
-		secureRandom.setSeed("shoalter".getBytes("UTF-8"));
-
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-		keyPairGenerator.initialize(2048, secureRandom);
-		keyPair = keyPairGenerator.generateKeyPair();
-
-		return keyPair;
 	}
 
 }

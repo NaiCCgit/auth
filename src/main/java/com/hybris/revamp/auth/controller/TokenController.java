@@ -3,6 +3,7 @@ package com.hybris.revamp.auth.controller;
 import com.hybris.revamp.auth.dto.CipherRequest;
 import com.hybris.revamp.auth.infra.CipherService;
 import com.hybris.revamp.auth.infra.JWTService;
+import com.hybris.revamp.auth.prop.JwtProperty;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,8 @@ public class TokenController
 
 	private final CipherService cipherService;
 
+	private final JwtProperty jwtProperty;
+
 
 	/**
 	 * request body帶occ token
@@ -43,9 +46,7 @@ public class TokenController
 	@PostMapping("/occ/login/tokenExchange")
 	public ResponseEntity<Map<String, String>> exchangeOccToken(@Valid @RequestBody CipherRequest request) {
 		// 測試時通過  9112/hktvwebservices/oauth/token 拿到 QCM
-		// TODO: 將token decrypt
 		String token = cipherService.parseCipherRequest(request);
-//		String token = request.get("token");
 		log.info("Request Transfer to SimpleText", token);
 		String exchangedToken = jwtService.exchangeToken(token);
 		Map<String, String> response = Collections.singletonMap("token", exchangedToken);
@@ -71,5 +72,15 @@ public class TokenController
 		log.info("cipher:{}", cipher);
 		return ResponseEntity.ok(cipher);
 	}
+
+	@Operation(summary = "getkey")
+	@GetMapping ("/occ/getkey")
+	public void encode() {
+		log.info("jwtProperty:{}", jwtProperty);
+		log.info("rsaProperty:{}", jwtProperty.getRsa());
+		log.info("publicKey:{}", jwtProperty.getRsa().getPublicKey());
+	}
+
+
 
 }
