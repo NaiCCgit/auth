@@ -57,7 +57,9 @@ public class TokenController
 	@PostMapping("/occ/parse-rsa")
 	public ResponseEntity<Map<String, Object>> parseOccToken(@RequestBody Map<String, String> request) {
 		String rsaJwt = request.get("rsaJwt");
-		var claimResult = jwtService.parseRsaJwt(rsaJwt);
+		String pubK = request.get("pubK");
+//		var claimResult = jwtService.parseRsaJwt(rsaJwt);
+		var claimResult = jwtService.parseRsaJwt(rsaJwt, pubK);
 
 		return ResponseEntity.ok(claimResult);
 	}

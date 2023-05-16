@@ -368,6 +368,27 @@ public class JWTService {
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 	}
 
+	@SneakyThrows
+	public Map<String, Object> parseRsaJwt(String jwtToParse, String pubK) {
+		Claims parsedRsaJwtClaims = null;
+
+		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(pubK.getBytes("UTF-8")));
+		KeyFactory keyFactory_public = KeyFactory.getInstance("RSA");
+		PublicKey publicKey_public = keyFactory_public.generatePublic(keySpec_public);
+
+		Jws<Claims> jws = Jwts.parser()
+				.setSigningKey(publicKey_public)
+				.parseClaimsJws(jwtToParse);
+
+		parsedRsaJwtClaims = jws.getBody();
+
+		return parsedRsaJwtClaims.entrySet().stream()
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+	}
+
+
+
+
 	/**
 	 * 以secureRandom建立KeyPair
 	 */
