@@ -9,10 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,7 +28,7 @@ public class AppUserService
 	public AppUser getUserResponseById(String id) {
 		AppUser user = repository.findById(Long.valueOf(id))
 				.orElseThrow(() -> new NotFoundException("Can't find user."));
-
+		log.info("user:{}", user);
 		return user;
 	}
 

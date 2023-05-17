@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hybris.revamp.auth.dto.AuthRequest;
 import com.hybris.revamp.auth.exception.NotFoundException;
+import com.hybris.revamp.auth.infra.UserIdentity;
 import com.hybris.revamp.auth.prop.JwtProperty;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
@@ -33,6 +34,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -53,27 +55,24 @@ import java.util.stream.Collectors;
 @Service
 public class JWTService {
 
-	private final JwtProperty jwtProperty;
-	private final UserIdentity userIdentity;
-	private final AuthenticationManager authenticationManager;
-//	@Autowired
-//	private UserIdentity userIdentity;
-//
-//	@Autowired
-//	private AuthenticationManager authenticationManager;
+	@Autowired
+	private JwtProperty jwtProperty;
+
+	@Autowired
+	private UserIdentity userIdentity;
+
+	@Autowired
+	private AuthenticationManager authenticationManager;
 
 	private static final String KEY = "ShoalterHktvMallHybrisTokenSecretKey";
-
-	// fixme: need key to decrypt Occ Token
-	// TODO: RSA256
-	private static final String HKTV_KEY = "ShoalterHktvMallHybrisTokenSecretKey";
 
 	/**
 	 * 產生期限200分鐘的 JWT
 	 *
-	 * @param request
-	 * @return
+	 * @param request 使用者的帳密
+	 * @return Jwt string
 	 */
+	@SneakyThrows
 	public String generateToken(AuthRequest request) {
 		Authentication authentication = new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword());
 		// authenticationManager有多種驗證方法,param會是一個Authentication介面
@@ -82,14 +81,12 @@ public class JWTService {
 		// authenticate成功後的return依然是Authentication介面,但其內的principal會變成UserDetails
 		UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-		Calendar calendar = Calendar.getInstance();
-		calendar.add(Calendar.MINUTE, 200);
-
 		// Claims物件用來放payload
 		Claims claims = Jwts.claims();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		claims.put("username", userDetails.getUsername());
-		claims.setExpiration(calendar.getTime());
-		claims.setIssuer("Shoalter-BE-II");
+		claims.setIssuer("Shoalter-BE-II")
+				.setExpiration(sdf.parse("2200-01-01"));
 
 		// 產生密鑰: 提供一個字串,轉成 byte[]作為參數
 		Key secretKey = Keys.hmacShaKeyFor(KEY.getBytes());
@@ -124,51 +121,6 @@ public class JWTService {
 
 		return claims.entrySet().stream()
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-	}
-
-	/**
-	 * 進入此方法須header先帶了 in situ 的token
-	 * param 為occtoken被解析出claims
-	 * claims透過mock管道，拿到customer info
-	 * 以customer info產生要給mall系統的Jwt(call mall 的 login api?)
-	 * header帶Jwt，透過mall api，拿到pk,uid
-	 * 以pk,uid建立Jwt回傳
-	 *
-	 * @param token 為Occtoken
-	 */
-	@SneakyThrows
-	public String exchangeToken(String token)
-	{
-		log.info("userIdentity:{}", userIdentity);
-//		Claims claims = this.parseOccToken(token);
-		// fixme: this is mock
-		CustomerProfileInfo cusInfo = this.getCustomerProfileInfo(token);
-		String access_token = this.hktvOauthLogin(cusInfo.getCustomerName(), cusInfo.getPassword());
-		CustomerData curCustomer = this.hktvGetCurrentCustomer(access_token);
-		String exchagedToken = this.generateOccToken(curCustomer, token);
-		log.info("exchagedToken:{}", exchagedToken);
-		return exchagedToken;
-	}
-
-	// TODO: occ不是Jwt，隨便加密隨便解密，raw大致長像 0008c8d8-e0c7-48a1-a62b-516a69a6b87a
-	/**
-	 * 進入此方法須header先帶了 in situ 的token
-	 * 方法參數為Occtoken
-	 */
-	public Claims parseOccToken(String token) {
-		// HKTV密鑰
-		Key secretKey = Keys.hmacShaKeyFor(HKTV_KEY.getBytes());
-		JwtParser parser = Jwts.parserBuilder()
-				.setSigningKey(secretKey)
-				.build();
-
-		// 解析出JWS，如果失敗會SignatureException,如果過期會ExpiredJwtException
-		JwsHeader header = parser.parseClaimsJws(token).getHeader();
-		Claims claims = parser.parseClaimsJws(token).getBody();
-		log.info("OCC token header:{}", header);
-		log.info("OCC token payload:{}", claims);
-
-		return claims;
 	}
 
 	/**
@@ -296,7 +248,6 @@ public class JWTService {
 		log.info("Public Key: {}", jwtProperty.getRsa().getPublicKey());
 		log.info("Private Key: {}", jwtProperty.getRsa().getPrivateKey());
 
-		String someProperyValue = "someName";
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		Claims claims = Jwts.claims();
 		claims.setIssuer("Shoalter-BE-II")
@@ -319,7 +270,8 @@ public class JWTService {
 	@SneakyThrows
 	private String generateRsaJwt(Claims claims, String privateKeyStr) {
 
-		PKCS8EncodedKeySpec keySpec_private = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyStr.getBytes("UTF-8")));
+		PKCS8EncodedKeySpec keySpec_private = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyStr.getBytes(
+				StandardCharsets.UTF_8)));
 		KeyFactory keyFactory_private = KeyFactory.getInstance("RSA");
 		PrivateKey privateKey = keyFactory_private.generatePrivate(keySpec_private);
 
@@ -336,7 +288,7 @@ public class JWTService {
 	public Map<String, Object> parseRsaJwt(String jwtToParse) {
 		Claims parsedRsaJwtClaims = null;
 
-		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(jwtProperty.getRsa().getPublicKey().getBytes("UTF-8")));
+		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(jwtProperty.getRsa().getPublicKey().getBytes(StandardCharsets.UTF_8)));
 		KeyFactory keyFactory_public = KeyFactory.getInstance("RSA");
 		PublicKey publicKey_public = keyFactory_public.generatePublic(keySpec_public);
 
@@ -354,7 +306,7 @@ public class JWTService {
 	public Map<String, Object> parseRsaJwt(String jwtToParse, String pubK) {
 		Claims parsedRsaJwtClaims = null;
 
-		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(pubK.getBytes("UTF-8")));
+		X509EncodedKeySpec keySpec_public = new X509EncodedKeySpec(Base64.getDecoder().decode(pubK.getBytes(StandardCharsets.UTF_8)));
 		KeyFactory keyFactory_public = KeyFactory.getInstance("RSA");
 		PublicKey publicKey_public = keyFactory_public.generatePublic(keySpec_public);
 

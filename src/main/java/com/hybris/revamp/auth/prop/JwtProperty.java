@@ -1,7 +1,6 @@
 package com.hybris.revamp.auth.prop;
 
 import lombok.AllArgsConstructor;
-import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -16,7 +15,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "auth.jwt")
 public class JwtProperty
 {
-	private long ttl;
+	private int ttl;
 	private String issuer;
 	private String key;
 

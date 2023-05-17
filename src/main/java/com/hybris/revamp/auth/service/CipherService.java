@@ -1,4 +1,4 @@
-package com.hybris.revamp.auth.infra;
+package com.hybris.revamp.auth.service;
 
 import com.hybris.revamp.auth.dto.CipherRequest;
 import io.jsonwebtoken.Jwts;
@@ -27,7 +27,7 @@ public class CipherService
 
 	@SneakyThrows
 	private String decode(String cipher){
-		byte[] decodedBytes = Base64.getDecoder().decode(cipher.getBytes("UTF-8"));
+		byte[] decodedBytes = Base64.getDecoder().decode(cipher.getBytes(StandardCharsets.UTF_8));
 		return new String(decodedBytes);
 	}
 	private String decrypt(String cipher){

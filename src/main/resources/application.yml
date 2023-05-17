@@ -22,7 +22,7 @@ server.ssl.enabled: false
 
 # RS256
 auth.jwt:
-  ttl: 3600000 # expired ms
+  ttl: 18000000 # expired ms
   issuer: Shoalter-BE-II
   key: rsa_exchange_key
   rsa:

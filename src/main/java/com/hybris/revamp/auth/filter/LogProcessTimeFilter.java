@@ -22,10 +22,10 @@ public class LogProcessTimeFilter extends OncePerRequestFilter
 			FilterChain chain) throws ServletException, IOException
 	{
 		long startTime = System.currentTimeMillis();
+		log.info("counter start");
 		// 將request送至controller拿回response
 		chain.doFilter(request, response);
 		long processTime = System.currentTimeMillis() - startTime;
-
 		log.info("{} ms", processTime);
 	}
 }

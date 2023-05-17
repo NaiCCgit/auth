@@ -62,9 +62,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
 		http.headers().frameOptions().sameOrigin();
 		// 為h2關上CSRF防護
 		//				.csrf().ignoringAntMatchers("/h2-console/**")
-
-				// 開啟前端spring預設畫面
-//				.formLogin();
+		// 開啟前端spring預設畫面
+		// .formLogin();
 	}
 
 	@Override

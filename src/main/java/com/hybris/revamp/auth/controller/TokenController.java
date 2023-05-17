@@ -1,9 +1,9 @@
 package com.hybris.revamp.auth.controller;
 
 import com.hybris.revamp.auth.dto.CipherRequest;
-import com.hybris.revamp.auth.infra.CipherService;
-import com.hybris.revamp.auth.infra.JWTService;
+import com.hybris.revamp.auth.service.CipherService;
 import com.hybris.revamp.auth.prop.JwtProperty;
+import com.hybris.revamp.auth.service.TokenService;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,18 +28,19 @@ import java.util.Map;
 public class TokenController
 {
 
-	private final JWTService jwtService;
-
 	private final CipherService cipherService;
 
 	private final JwtProperty jwtProperty;
 
+	private final TokenService tokenService;
+
 
 	/**
-	 * request body帶occ token
+	 * request body帶encoded occ token
+	 * decode後
 	 * 以occ token資訊，透過mock管道，拿到customer info
-	 * 以customer info產生要給mall系統的Jwt
-	 * 以Jwt，透過mall api，拿到pk,uid
+	 * 以customer info登入mall系統，拿到access_token
+	 * 以access_token，透過mall api，拿到pk,uid
 	 * 以pk,uid，產生JWT回傳
 	 */
 	@Operation(summary = "Exchange token", description = "以OCC token換取另一JWT回傳，其內包含mall內的PK和uid")
@@ -47,8 +48,8 @@ public class TokenController
 	public ResponseEntity<Map<String, String>> exchangeOccToken(@Valid @RequestBody CipherRequest request) {
 		// 測試時通過  9112/hktvwebservices/oauth/token 拿到 QCM
 		String token = cipherService.parseCipherRequest(request);
-		log.info("Request Transfer to SimpleText", token);
-		String exchangedToken = jwtService.exchangeToken(token);
+		log.info("Request Transfer to SimpleText:{}", token);
+		String exchangedToken = tokenService.exchangeToken(token);
 		Map<String, String> response = Collections.singletonMap("token", exchangedToken);
 
 		return ResponseEntity.ok(response);
@@ -59,19 +60,22 @@ public class TokenController
 	public ResponseEntity<Map<String, Object>> parseOccToken(@RequestBody Map<String, String> request) {
 		String rsaJwt = request.get("rsaJwt");
 		String pubK = request.get("pubK");
-//		var claimResult = jwtService.parseRsaJwt(rsaJwt);
-		var claimResult = jwtService.parseRsaJwt(rsaJwt, pubK);
-
+		var claimResult = tokenService.parseRsaJwt(rsaJwt, pubK);
+		log.info("claimResult:{}", claimResult);
 		return ResponseEntity.ok(claimResult);
 	}
 
-	@Operation(summary = "BEFORE exchange token", description = "local測試用 把raw access-token轉成encode")
+	@Operation(summary = "BEFORE exchange token", description = "local測試用 把raw access-token轉成encode後提供給exchangeOccToken測試")
 	@GetMapping ("/occ/before-tokenExchange")
 	public ResponseEntity<CipherRequest> encode(@RequestParam("raw") String raw) {
 		CipherRequest cipher = cipherService.encode(raw);
 		log.info("cipher:{}", cipher);
 		return ResponseEntity.ok(cipher);
 	}
+
+	/**
+	 * 測試用，確認設定屬性
+	 */
 
 	@Operation(summary = "getkey")
 	@GetMapping ("/occ/getkey")
@@ -80,7 +84,5 @@ public class TokenController
 		log.info("rsaProperty:{}", jwtProperty.getRsa());
 		log.info("publicKey:{}", jwtProperty.getRsa().getPublicKey());
 	}
-
-
 
 }

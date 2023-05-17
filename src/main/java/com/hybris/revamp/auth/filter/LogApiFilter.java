@@ -45,7 +45,7 @@ public class LogApiFilter extends OncePerRequestFilter
 		// Wrapper可以多次拿body
 		ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request);
 		ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
-
+		// 後來被security的filter和執行方法先拿走了，所以現在requestBody沒有值了
 		String requestBody = getContent(requestWrapper.getContentAsByteArray());
 		log.info("Request: {}", requestBody);
 
