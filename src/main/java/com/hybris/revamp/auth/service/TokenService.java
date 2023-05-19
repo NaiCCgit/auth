@@ -43,10 +43,9 @@ import java.util.stream.Collectors;
 public class TokenService {
 
 	private final JwtProperty jwtProperty;
-	private final UserIdentity userIdentity;
 
 	/**
-	 * 以occ token資訊，透過mock管道，拿到customer info
+	 * 以raw occ token資訊，透過mock管道，拿到customer info
 	 * 以customer info登入mall系統，拿到access_token
 	 * 以access_token，透過mall api，拿到pk,uid
 	 * 以pk,uid，產生JWT回傳
@@ -56,10 +55,10 @@ public class TokenService {
 	@SneakyThrows
 	public String exchangeToken(String token)
 	{
-		log.info("userIdentity:{}", userIdentity);
 		// fixme: this is mock
 		CustomerProfileInfo cusInfo = this.getCustomerProfileInfo(token);
 		String access_token = this.hktvOauthLogin(cusInfo.getCustomerName(), cusInfo.getPassword());
+		// TODO: 抽象掉
 		CustomerData curCustomer = this.hktvGetCurrentCustomer(access_token);
 		String exchagedToken = this.generateOccToken(curCustomer, token);
 		log.info("exchagedToken:{}", exchagedToken);
