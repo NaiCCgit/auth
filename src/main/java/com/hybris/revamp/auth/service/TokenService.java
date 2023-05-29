@@ -1,6 +1,7 @@
 package com.hybris.revamp.auth.service;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hybris.revamp.auth.exception.NotFoundException;
 import com.hybris.revamp.auth.infra.UserIdentity;
@@ -9,6 +10,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -162,6 +165,8 @@ public class TokenService {
 		String customerId;
 		String uid;
 		String muid;
+		String name;
+		String membershipLevel;
 	}
 
 	/**
@@ -191,15 +196,23 @@ public class TokenService {
 
 		Claims claims = Jwts.claims();
 		Calendar calendar = Calendar.getInstance();
+		// 先不要過期，設為分鐘
 		calendar.add(Calendar.MINUTE, jwtProperty.getTtl());
 
 		claims.setIssuer(jwtProperty.getIssuer())
 				.setExpiration(calendar.getTime());
-		// TODO: 不確定CustomerId, Muid哪個是PK
-		claims.put("PK", curCustomer.getCustomerId());
+		// TODO: 不確定CustomerId, Muid哪個是Pk
+		claims.put("userPk", curCustomer.getCustomerId());
 		claims.put("muid", curCustomer.getMuid());
 		claims.put("uid", curCustomer.getUid());
-		claims.put("raw-occ-token", rawOccToken);
+		claims.put("active", true);
+		claims.put("expired", false);
+		// temp for test
+		claims.put("jwtCreatedDate", "2023-05-20");
+//		claims.put("jwtCreatedDate", LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+		claims.put("membershipLevel", curCustomer.getMembershipLevel());
+		claims.put("name", curCustomer.getName());
+		claims.put("hktvCustomerAdvertisingPk", 9999L);
 
 		String generatedRsaJwt = generateRsaJwt(claims, jwtProperty.getRsa().getPrivateKey());
 		log.info("generatedRsaJwt: {}", generatedRsaJwt);
